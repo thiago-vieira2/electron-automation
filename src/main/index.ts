@@ -26,24 +26,77 @@ const iniciarNavegador = async () => {
   return { navegador, pagina };
 };
 
+const aguardarURLCorreta = async (pagina, urlEsperada) => {
+  console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
+  await pagina.waitForFunction(
+    (url) => window.location.href === url,
+    { timeout: 0 },
+    urlEsperada
+  );
+  console.log("Navegação para a URL esperada detectada!");
+};
+
 const executarAutomacao = async (codigoNota, pagina) => {
   try {
-    if (!codigoNota || typeof codigoNota !== 'string') {
+
+    if (!codigoNota || typeof codigoNota !== "string") {
       throw new Error("O código da nota não é válido.");
     }
 
     await pagina.goto(process.env.PAGE_TO_OPEN, { waitUntil: "domcontentloaded" });
 
-    await pagina.waitForSelector('[name="search_query"]', { visible: true, timeout: 5000 });
-    await pagina.type('[name="search_query"]', codigoNota, { delay: 50 });
+    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', {
+      visible: true,
+      timeout: 10000,
+    });
 
-    await pagina.waitForSelector("#search-icon-legacy", { visible: true, timeout: 5000 });
-    await pagina.click("#search-icon-legacy");
+    await pagina.evaluate((codigo: string) => {
+      try {
+        // Seleciona o elemento de entrada com o título específico
+        const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+        if (input) {
+          // Define o valor do input de forma compatível com campos controlados
+          const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          if (nativeValueSetter) {
+            nativeValueSetter.call(input, codigo); // Define o valor
+            input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento
+            console.log('Valor definido com sucesso no campo de entrada.');
+          } else {
+            console.error('Não foi possível definir o valor: setter nativo não encontrado.');
+          }
+        } else {
+          console.error('Elemento de entrada não encontrado.');
+        }
+      } catch (error) {
+        console.error('Erro ao tentar definir o valor no campo de entrada:', error);
+      }
+    }, codigoNota);
 
-    await pagina.waitForNavigation({ waitUntil: "networkidle2" });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 1000});
+    await pagina.click('[value="Salvar Nota"]');
 
-    console.log(`Pesquisa realizada para: ${codigoNota}`);
-    await pagina.waitForTimeout(500);
+    await pagina.evaluate(() => {
+      // Seleciona o elemento de entrada
+      const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+      if (input) {
+        // Usa o setter nativo para evitar problemas com frameworks controlados
+        const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeValueSetter) {
+          nativeValueSetter.call(input, ""); // Define o valor como uma string vazia
+          input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento esperado pelo framework
+        } else {
+          console.error('Não foi possível acessar o setter nativo para o valor do input.');
+        }
+      } else {
+        console.error('Elemento de entrada não encontrado.');
+      }
+    });
+
+    await pagina.click('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+
+    await new Promise(resolve => setTimeout(resolve, 2500)); 
+    
+
   } catch (erro) {
     console.error(`Erro no processo: ${erro}`);
   }
@@ -58,6 +111,8 @@ const handler = async (planilha) => {
     const primeiraColuna = handlePrimeiraColuna(planilha);
 
     const { navegador, pagina } = await iniciarNavegador();
+
+    
 
     for (const codigoNota of primeiraColuna) {
       if (!codigoNota || typeof codigoNota !== "string") {
@@ -76,6 +131,10 @@ const handler = async (planilha) => {
   }
 };
 
+
+
+
+//----------------------------------------------------------
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
