@@ -39,10 +39,10 @@ function App() {
       <h1>Automação do Ministério da Fazenda</h1>
       <form onSubmit={handleUpload}>
         <div>
-          <label htmlFor="arquivo">Selecione o arquivo Excel:</label>
+          <label className="selecionar" htmlFor="arquivo">Selecione o arquivo Excel:</label>
           <input type="file" id="arquivo" accept=".xlsx" onChange={handleFileChange} />
         </div>
-        <button type="submit" disabled={carregando}>
+        <button className="Enviar" type="submit" disabled={carregando}>
           {carregando ? "Processando..." : "Enviar Arquivo"}
         </button>
       </form>
