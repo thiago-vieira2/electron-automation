@@ -7,14 +7,14 @@ import 'dotenv/config';
 const puppeteer = require("puppeteer");
 const xlsx = require("xlsx");
 
-const handlePrimeiraColuna = (planilha) => {
+const handlePrimeiraColuna = async (planilha) => {
   const aba = planilha.SheetNames[0];  
   const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 }); 
 
   const primeiraColuna = dados.map(linha => linha[0]);  
-
+  console.log(primeiraColuna);
   return primeiraColuna;
-};
+}
 
 const iniciarNavegador = async () => {
   const navegador = await puppeteer.launch({
@@ -36,14 +36,11 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log("Navegação para a URL esperada detectada!");
 };
 
-const executarAutomacao = async (codigoNota, pagina) => {
+const executarAutomacao = async (codigoNota, pagina) => { 
   try {
-
     if (!codigoNota || typeof codigoNota !== "string") {
       throw new Error("O código da nota não é válido.");
     }
-
-    await pagina.goto(process.env.PAGE_TO_OPEN, { waitUntil: "domcontentloaded" });
 
     await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', {
       visible: true,
@@ -52,14 +49,12 @@ const executarAutomacao = async (codigoNota, pagina) => {
 
     await pagina.evaluate((codigo: string) => {
       try {
-        // Seleciona o elemento de entrada com o título específico
         const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
         if (input) {
-          // Define o valor do input de forma compatível com campos controlados
           const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
           if (nativeValueSetter) {
-            nativeValueSetter.call(input, codigo); // Define o valor
-            input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento
+            nativeValueSetter.call(input, codigo);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
             console.log('Valor definido com sucesso no campo de entrada.');
           } else {
             console.error('Não foi possível definir o valor: setter nativo não encontrado.');
@@ -72,18 +67,16 @@ const executarAutomacao = async (codigoNota, pagina) => {
       }
     }, codigoNota);
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 1000});
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 1000 });
     await pagina.click('[value="Salvar Nota"]');
 
     await pagina.evaluate(() => {
-      // Seleciona o elemento de entrada
       const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
       if (input) {
-        // Usa o setter nativo para evitar problemas com frameworks controlados
         const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         if (nativeValueSetter) {
-          nativeValueSetter.call(input, ""); // Define o valor como uma string vazia
-          input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento esperado pelo framework
+          nativeValueSetter.call(input, "");
+          input.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
           console.error('Não foi possível acessar o setter nativo para o valor do input.');
         }
@@ -93,9 +86,7 @@ const executarAutomacao = async (codigoNota, pagina) => {
     });
 
     await pagina.click('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
-
     await new Promise(resolve => setTimeout(resolve, 2500)); 
-    
 
   } catch (erro) {
     console.error(`Erro no processo: ${erro}`);
@@ -108,24 +99,34 @@ const handler = async (planilha) => {
   }
 
   try {
-    const primeiraColuna = handlePrimeiraColuna(planilha);
+    // Aguarda a execução de handlePrimeiraColuna para garantir que a primeira coluna seja extraída corretamente
+    const primeiraColuna = await handlePrimeiraColuna(planilha);
 
     const { navegador, pagina } = await iniciarNavegador();
 
-    
+    const urlInicial = "https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=%2fEntidadesFilantropicas%2fCadastroNotaEntidade.aspx";
+    await pagina.goto(urlInicial, { waitUntil: "domcontentloaded" });
 
+    const urlEsperada = "https://www.nfp.fazenda.sp.gov.br/EntidadesFilantropicas/ListagemNotaEntidade.aspx";
+    await aguardarURLCorreta(pagina, urlEsperada);
+
+    // Loop para processar cada código de nota
     for (const codigoNota of primeiraColuna) {
-      if (!codigoNota || typeof codigoNota !== "string") {
+      if (!codigoNota || typeof codigoNota !== "string" || codigoNota.trim() === "") {
         console.log(`Valor inválido para Código da Nota: ${codigoNota}`);
         continue;
       }
-      await executarAutomacao(codigoNota, pagina);
+
+      try {
+        await executarAutomacao(codigoNota, pagina); // Chama a automação para cada código
+      } catch (erro) {
+        console.error(`Erro ao processar o código ${codigoNota}:`, erro);
+      }
     }
 
-    await navegador.close();
     console.log("Automação concluída com sucesso.");
     return "Automação concluída com sucesso!";
-  } catch (erro:any) {
+  } catch (erro: any) {
     console.error("Erro no processo:", erro);
     throw new Error("Erro ao processar o arquivo: " + erro.message);
   }
