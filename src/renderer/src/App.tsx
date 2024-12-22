@@ -2,16 +2,17 @@ import { useState } from "react";
 import "./App.scss";
 
 function App() {
-  const [arquivo, setArquivo] = useState<{ path?: string }>({});
+  const [arquivo, setArquivo] = useState<File | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [carregando, setCarregando] = useState(false);
 
-
-  const handleFileChange = (e) => {
-    setArquivo(e.target.files[0]);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target && e.target.files) {
+      setArquivo(e.target.files[0]);
+    }
   };
 
-  const handleUpload = async (e) => {
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!arquivo) {
@@ -19,22 +20,31 @@ function App() {
       return;
     }
 
-    window.api.iniciarNavegador(arquivo.path);
     setCarregando(true);
     setMensagem("Processando arquivo...");
 
     try {
-      // Chama o processo principal via Electron
-      const resultado = '';
-      setMensagem(resultado);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const buffer = event.target?.result;
+        if (buffer) {
+          const resultado = await window.api.iniciarNavegador(buffer);
+          setMensagem(resultado || "Arquivo processado com sucesso!");
+        }
+      };
+      reader.onerror = () => {
+        setMensagem("Erro ao ler o arquivo. Tente novamente.");
+      };
+      reader.readAsArrayBuffer(arquivo);
     } catch (erro) {
+      setMensagem("Erro ao processar o arquivo.");
+      console.error(erro);
     } finally {
       setCarregando(false);
     }
   };
-  
-  
-  return (  
+
+  return (
     <div className="App">
       <h1>Automação do Ministério da Fazenda</h1>
       <form onSubmit={handleUpload}>

@@ -1,17 +1,23 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+
 import 'dotenv/config';
 
 const puppeteer = require("puppeteer");
 const xlsx = require("xlsx");
 
-const handlePrimeiraColuna = (planilha) => {
-  const aba = planilha.SheetNames[0];  
-  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 }); 
 
-  const primeiraColuna = dados.map(linha => linha[0]);  
+const handlePrimeiraColuna = (planilha) => {
+  const aba = planilha.SheetNames[0];  //leituradosdados provalmente nao e ela o arrombado que ta corropendo 
+  console.log(`os dados da variavel aba deu essa bosta aqui ${aba}`);
+  
+  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });  //provalmente e esse merdinha 90% de certeza 
+  console.log("Dados lidos da variavel dados foi:", dados);
+
+
+  const primeiraColuna = dados.map((linha) => Array.isArray(linha) ? linha[0] : undefined);
+  console.log("Primeira coluna da variavel primeira coluna foi:", primeiraColuna);
 
   return primeiraColuna;
 };
@@ -38,70 +44,31 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
 
 const executarAutomacao = async (codigoNota, pagina) => {
   try {
-
-    if (!codigoNota || typeof codigoNota !== "string") {
-      throw new Error("O código da nota não é válido.");
+    if (!codigoNota || typeof codigoNota !== 'string') {
+      throw new Error('O código da nota não é válido.');
     }
 
-    await pagina.goto(process.env.PAGE_TO_OPEN, { waitUntil: "domcontentloaded" });
+    await pagina.goto("https://www.youtube.com/", { waitUntil: 'domcontentloaded' }); 
 
-    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', {
-      visible: true,
-      timeout: 10000,
-    });
+    await pagina.waitForSelector('[name="search_query"]', { visible: true, timeout: 5000 });  
 
-    await pagina.evaluate((codigo: string) => {
-      try {
-        // Seleciona o elemento de entrada com o título específico
-        const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
-        if (input) {
-          // Define o valor do input de forma compatível com campos controlados
-          const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (nativeValueSetter) {
-            nativeValueSetter.call(input, codigo); // Define o valor
-            input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento
-            console.log('Valor definido com sucesso no campo de entrada.');
-          } else {
-            console.error('Não foi possível definir o valor: setter nativo não encontrado.');
-          }
-        } else {
-          console.error('Elemento de entrada não encontrado.');
-        }
-      } catch (error) {
-        console.error('Erro ao tentar definir o valor no campo de entrada:', error);
-      }
-    }, codigoNota);
+    await pagina.type('[name="search_query"]', codigoNota, { delay: 50 });  
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 1000});
-    await pagina.click('[value="Salvar Nota"]');
+    await pagina.waitForSelector('.ytSearchboxComponentSearchButton', { visible: true, timeout: 5000 });
+    await pagina.click('.ytSearchboxComponentSearchButton');
 
-    await pagina.evaluate(() => {
-      // Seleciona o elemento de entrada
-      const input = document.querySelector<HTMLInputElement>('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
-      if (input) {
-        // Usa o setter nativo para evitar problemas com frameworks controlados
-        const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        if (nativeValueSetter) {
-          nativeValueSetter.call(input, ""); // Define o valor como uma string vazia
-          input.dispatchEvent(new Event('input', { bubbles: true })); // Dispara o evento esperado pelo framework
-        } else {
-          console.error('Não foi possível acessar o setter nativo para o valor do input.');
-        }
-      } else {
-        console.error('Elemento de entrada não encontrado.');
-      }
-    });
+    await pagina.waitForNavigation({ waitUntil: 'networkidle2', timeout: 1000 });
 
-    await pagina.click('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+    console.log(`Pesquisa realizada para: ${codigoNota}`);
 
-    await new Promise(resolve => setTimeout(resolve, 2500)); 
-    
+    await pagina.waitForTimeout(500); 
 
   } catch (erro) {
     console.error(`Erro no processo: ${erro}`);
   }
 };
 
+// Função principal de manipulação da planilha
 const handler = async (planilha) => {
   if (!planilha) {
     throw new Error("Nenhum arquivo fornecido para processamento.");
@@ -112,8 +79,6 @@ const handler = async (planilha) => {
 
     const { navegador, pagina } = await iniciarNavegador();
 
-    
-
     for (const codigoNota of primeiraColuna) {
       if (!codigoNota || typeof codigoNota !== "string") {
         console.log(`Valor inválido para Código da Nota: ${codigoNota}`);
@@ -122,82 +87,78 @@ const handler = async (planilha) => {
       await executarAutomacao(codigoNota, pagina);
     }
 
-    await navegador.close();
     console.log("Automação concluída com sucesso.");
     return "Automação concluída com sucesso!";
-  } catch (erro:any) {
+  } catch (erro) {
     console.error("Erro no processo:", erro);
-    throw new Error("Erro ao processar o arquivo: " + erro.message);
+    throw new Error("Erro ao processar o arquivo: " + erro);
   }
 };
 
 
+ipcMain.handle('iniciar-navegador', async (_, buffer) => {
+  try {
+    // Lê o buffer da planilha
+    const workbook = xlsx.read(buffer, { type: "buffer" });
+    
+    // Aguarda a execução da função handler de forma assíncrona
+    await handler(workbook);
 
+    console.log("Automação concluída com sucesso.");
+  } catch (e: any) {
+    console.error('Algo deu errado ao processar a planilha: ', e.message);
+    // Pode lançar o erro novamente ou retornar uma mensagem para o frontend, se necessário
+    throw new Error(`Erro ao processar a planilha: ${e.message}`);
+  }
+});
+// Função para criar a janela principal do Electron
+function createWindow() {
 
-//----------------------------------------------------------
-function createWindow(): void {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1900,
+    height: 1300,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
+      sandbox: false,
+    },
+  });
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
+    mainWindow.show();
+  });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+    shell.openExternal(details.url);
+    return { action: 'deny' };
+  });
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
 
-ipcMain.handle('iniciar-navegador', async (_, buffer) => {
-  try {
-    const workbook = xlsx.read(buffer, { type: "buffer" });
-    handler(workbook);
-  }catch(e: any) {
-    console.log('Something went wrong! ', e.message);
-  }
+// Quando o app estiver pronto, executa
+app.whenReady().then(() => {
+  electronApp.setAppUserModelId('com.electron');
+
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window);
+  });
+
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
 });
 
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  createWindow()
-
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
-
+// Quando todas as janelas forem fechadas
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit()
+    app.quit();
   }
-})
+});
