@@ -20,7 +20,7 @@ const handlePrimeiraColuna = (planilha) => {
   console.log("Primeira coluna da variavel primeira coluna foi:", primeiraColuna);
 
   return primeiraColuna;
-};
+}
 
 const iniciarNavegador = async () => {
   const navegador = await puppeteer.launch({
@@ -42,7 +42,7 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log("Navegação para a URL esperada detectada!");
 };
 
-const executarAutomacao = async (codigoNota, pagina) => {
+const executarAutomacao = async (codigoNota, pagina) => { 
   try {
     if (!codigoNota || typeof codigoNota !== 'string') {
       throw new Error('O código da nota não é válido.');
@@ -75,16 +75,22 @@ const handler = async (planilha) => {
   }
 
   try {
-    const primeiraColuna = handlePrimeiraColuna(planilha);
+    // Aguarda a execução de handlePrimeiraColuna para garantir que a primeira coluna seja extraída corretamente
+    const primeiraColuna = await handlePrimeiraColuna(planilha);
 
     const { navegador, pagina } = await iniciarNavegador();
 
     for (const codigoNota of primeiraColuna) {
-      if (!codigoNota || typeof codigoNota !== "string") {
+      if (!codigoNota || typeof codigoNota !== "string" || codigoNota.trim() === "") {
         console.log(`Valor inválido para Código da Nota: ${codigoNota}`);
         continue;
       }
-      await executarAutomacao(codigoNota, pagina);
+
+      try {
+        await executarAutomacao(codigoNota, pagina); // Chama a automação para cada código
+      } catch (erro) {
+        console.error(`Erro ao processar o código ${codigoNota}:`, erro);
+      }
     }
 
     console.log("Automação concluída com sucesso.");
