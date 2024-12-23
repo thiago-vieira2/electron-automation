@@ -10,7 +10,7 @@ const xlsx = require("xlsx");
 
 const handlePrimeiraColuna = (planilha) => {
   const aba = planilha.SheetNames[0];  //leituradosdados provalmente nao e ela o arrombado que ta corropendo 
-  console.log(`os dados da variavel aba deu essa bosta aqui ${aba}`);
+  console.log(`os dados da variavel são: ${aba}`);
   
   const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });  //provalmente e esse merdinha 90% de certeza 
   console.log("Dados lidos da variavel dados foi:", dados);
@@ -48,20 +48,28 @@ const executarAutomacao = async (codigoNota, pagina) => {
       throw new Error('O código da nota não é válido.');
     }
 
-    await pagina.goto("https://www.youtube.com/", { waitUntil: 'domcontentloaded' }); 
 
-    await pagina.waitForSelector('[name="search_query"]', { visible: true, timeout: 5000 });  
+   
+    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });  
 
-    await pagina.type('[name="search_query"]', codigoNota, { delay: 50 });  
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    await pagina.evaluate((codigo) => {
+      navigator.clipboard.writeText(codigo);
+    }, codigoNota);
+    
+  
+    await pagina.focus('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+    await pagina.keyboard.down('Control'); 
+    await pagina.keyboard.press('V');
+    await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('.ytSearchboxComponentSearchButton', { visible: true, timeout: 5000 });
-    await pagina.click('.ytSearchboxComponentSearchButton');
-
-    await pagina.waitForNavigation({ waitUntil: 'networkidle2', timeout: 1000 });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
 
     console.log(`Pesquisa realizada para: ${codigoNota}`);
 
-    await pagina.waitForTimeout(500); 
 
   } catch (erro) {
     console.error(`Erro no processo: ${erro}`);
@@ -79,6 +87,14 @@ const handler = async (planilha) => {
     const primeiraColuna = await handlePrimeiraColuna(planilha);
 
     const { navegador, pagina } = await iniciarNavegador();
+
+    const urlInicial = "https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=%2fEntidadesFilantropicas%2fCadastroNotaEntidade.aspx";
+    await pagina.goto(urlInicial, { waitUntil: "domcontentloaded" });
+
+
+    const urlEsperada = "https://www.nfp.fazenda.sp.gov.br/EntidadesFilantropicas/ListagemNotaEntidade.aspx";
+    await aguardarURLCorreta(pagina, urlEsperada);
+
 
     for (const codigoNota of primeiraColuna) {
       if (!codigoNota || typeof codigoNota !== "string" || codigoNota.trim() === "") {
