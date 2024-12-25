@@ -28,9 +28,22 @@ const iniciarNavegador = async () => {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 
+  navegador.on('targetcreated', async (target) => {
+    const url = target.url();
+    if (url.includes("PoliticaPrivacidade")) {
+      const page = await target.page();
+      if (page) {
+        await page.close();
+      }
+      console.log(`Nova aba com URL ${url} foi fechada.`);
+    }
+  });
+  
   const pagina = await navegador.newPage();
   return { navegador, pagina };
+  
 };
+
 
 const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
@@ -64,9 +77,9 @@ const executarAutomacao = async (codigoNota, pagina) => {
     await pagina.keyboard.press('V');
     await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
     
-    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
 
     console.log(`Pesquisa realizada para: ${codigoNota}`);
 
