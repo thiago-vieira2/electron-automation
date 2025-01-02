@@ -11,8 +11,16 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+  
 win:
+  target:
+    - nsis
+  defaultArch: x64
   executableName: electron-app
+  certificateFile: null
+  sign: false
+
+
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

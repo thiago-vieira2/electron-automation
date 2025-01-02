@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-import 'dotenv/config';
 
 const puppeteer = require("puppeteer");
 const xlsx = require("xlsx");
@@ -49,7 +49,7 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
   await pagina.waitForFunction(
     (url) => window.location.href === url,
-    { timeout: 0 },
+    { timeout: 5000 },
     urlEsperada
   );
   console.log("Navegação para a URL esperada detectada!");
@@ -65,7 +65,7 @@ const executarAutomacao = async (codigoNota, pagina) => {
    
     await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });  
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
     
     await pagina.evaluate((codigo) => {
       navigator.clipboard.writeText(codigo);
@@ -77,9 +77,9 @@ const executarAutomacao = async (codigoNota, pagina) => {
     await pagina.keyboard.press('V');
     await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
     
-    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
 
     console.log(`Pesquisa realizada para: ${codigoNota}`);
 
@@ -99,7 +99,7 @@ const handler = async (planilha) => {
     // Aguarda a execução de handlePrimeiraColuna para garantir que a primeira coluna seja extraída corretamente
     const primeiraColuna = await handlePrimeiraColuna(planilha);
 
-    const { navegador, pagina } = await iniciarNavegador();
+    const { pagina } = await iniciarNavegador();
 
     const urlInicial = "https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=%2fEntidadesFilantropicas%2fCadastroNotaEntidade.aspx";
     await pagina.goto(urlInicial, { waitUntil: "domcontentloaded" });
