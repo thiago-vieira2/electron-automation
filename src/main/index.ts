@@ -23,33 +23,40 @@ const handlePrimeiraColuna = (planilha) => {
 }
 
 const iniciarNavegador = async () => {
-  const navegador = await puppeteer.launch({
-    headless: false,  
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
 
-  navegador.on('targetcreated', async (target) => {
-    const url = target.url();
-    if (url.includes("PoliticaPrivacidade")) {
-      const page = await target.page();
-      if (page) {
-        await page.close();
-      }
-      console.log(`Nova aba com URL ${url} foi fechada.`);
-    }
-  });
-  
-  const pagina = await navegador.newPage();
-  return { navegador, pagina };
-  
+      const navegador = await puppeteer.launch({
+        headless: false,  
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+
+      navegador.on('targetcreated', async (target) => {
+        const url = target.url();
+        console.log(`Nova aba criada: ${url}`); // Log aqui para ver a URL
+        if (url.includes("PoliticaPrivacidade")) {
+          const page = await target.page();
+          if (page) {
+            await page.close();
+          }
+          console.log(`Nova aba com URL ${url} foi fechada.`);
+        }
+      });
+      
+      const pagina = await navegador.newPage();
+      
+      const urlInicial = "https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=%2fEntidadesFilantropicas%2fCadastroNotaEntidade.aspx";
+      console.log(`Abrindo URL inicial: ${urlInicial}`);
+      await pagina.goto(urlInicial, { waitUntil: "domcontentloaded" });
+
+      return { navegador, pagina };
 };
+
 
 
 const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
   await pagina.waitForFunction(
     (url) => window.location.href === url,
-    { timeout: 5000 },
+    { timeout: 90000 },
     urlEsperada
   );
   console.log("Navegação para a URL esperada detectada!");
@@ -63,9 +70,9 @@ const executarAutomacao = async (codigoNota, pagina) => {
 
 
    
-    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });  
+    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 3000 });  
 
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     await pagina.evaluate((codigo) => {
       navigator.clipboard.writeText(codigo);
@@ -77,9 +84,9 @@ const executarAutomacao = async (codigoNota, pagina) => {
     await pagina.keyboard.press('V');
     await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
     
-    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
 
     console.log(`Pesquisa realizada para: ${codigoNota}`);
 
