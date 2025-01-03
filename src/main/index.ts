@@ -9,10 +9,10 @@ const xlsx = require("xlsx");
 
 
 const handlePrimeiraColuna = (planilha) => {
-  const aba = planilha.SheetNames[0];  //leituradosdados provalmente nao e ela o arrombado que ta corropendo 
+  const aba = planilha.SheetNames[0];  //leituradosdados 
   console.log(`os dados da variavel são: ${aba}`);
   
-  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });  //provalmente e esse merdinha 90% de certeza 
+  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });  
   console.log("Dados lidos da variavel dados foi:", dados);
 
 
