@@ -9,18 +9,30 @@ const xlsx = require("xlsx");
 
 
 const handlePrimeiraColuna = (planilha) => {
-  const aba = planilha.SheetNames[0];  //leituradosdados 
-  console.log(`os dados da variavel são: ${aba}`);
+  const aba = planilha.SheetNames.length > 0 ? planilha.SheetNames[0] : null;
+  if (!aba) {
+    console.error("A planilha não possui abas.");
+    return [];
+  }
+
+  console.log(`Aba selecionada: ${aba}`);
   
-  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });  
-  console.log("Dados lidos da variavel dados foi:", dados);
+  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });
+  if (!dados || dados.length === 0) {
+    console.error(`A aba ${aba} não contém dados válidos.`);
+    return [];
+  }
+  console.log("Dados lidos:", dados);
 
-
-  const primeiraColuna = dados.map((linha) => Array.isArray(linha) ? linha[0] : undefined);
-  console.log("Primeira coluna da variavel primeira coluna foi:", primeiraColuna);
+  const primeiraColuna = dados
+    .map((linha) => Array.isArray(linha) ? linha[0] : null)
+    .filter(value => value !== null);  // Filtra valores nulos
+  
+  console.log("Primeira coluna:", primeiraColuna);
 
   return primeiraColuna;
 }
+
 
 const iniciarNavegador = async () => {
 
@@ -56,7 +68,7 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
   await pagina.waitForFunction(
     (url) => window.location.href === url,
-    { timeout: 90000 },
+    { timeout: 100000 },
     urlEsperada
   );
   console.log("Navegação para a URL esperada detectada!");
@@ -70,9 +82,9 @@ const executarAutomacao = async (codigoNota, pagina) => {
 
 
    
-    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 3000 });  
+    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });  
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 7000));
     
     await pagina.evaluate((codigo) => {
       navigator.clipboard.writeText(codigo);
@@ -84,11 +96,15 @@ const executarAutomacao = async (codigoNota, pagina) => {
     await pagina.keyboard.press('V');
     await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
     
-    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 3000 });
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
 
-    console.log(`Pesquisa realizada para: ${codigoNota}`);
+    console.log(`nota salva para: ${codigoNota}`);
+
+    if(pagina.click){
+      console.log('nota cadastrada')
+    }
 
 
   } catch (erro) {
@@ -140,25 +156,25 @@ const handler = async (planilha) => {
 
 ipcMain.handle('iniciar-navegador', async (_, buffer) => {
   try {
-    // Lê o buffer da planilha
     const workbook = xlsx.read(buffer, { type: "buffer" });
-    
-    // Aguarda a execução da função handler de forma assíncrona
     await handler(workbook);
-
     console.log("Automação concluída com sucesso.");
-  } catch (e: any) {
-    console.error('Algo deu errado ao processar a planilha: ', e.message);
-    // Pode lançar o erro novamente ou retornar uma mensagem para o frontend, se necessário
-    throw new Error(`Erro ao processar a planilha: ${e.message}`);
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.error('Algo deu errado ao processar a planilha: ', e.message);
+      throw new Error(`Erro ao processar a planilha: ${e.message}`);
+    }
+    console.error('Erro desconhecido:', e);
+    throw new Error("Erro desconhecido ao processar a planilha.");
   }
 });
+
 // Função para criar a janela principal do Electron
 function createWindow() {
 
   const mainWindow = new BrowserWindow({
     width: 1900,
-    height: 1300,
+    height: 2300,
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
