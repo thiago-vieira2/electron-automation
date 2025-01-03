@@ -38,7 +38,9 @@ const iniciarNavegador = async () => {
 
       const navegador = await puppeteer.launch({
         headless: false,  
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-maximized'],
+
+        defaultViewport: null
       });
 
       navegador.on('targetcreated', async (target) => {
@@ -173,8 +175,9 @@ ipcMain.handle('iniciar-navegador', async (_, buffer) => {
 function createWindow() {
 
   const mainWindow = new BrowserWindow({
-    width: 1900,
-    height: 2300,
+    width: 1300,
+    height: 700,
+   
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
