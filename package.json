@@ -19,7 +19,7 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "dist:win": "npm run build && electron-builder --win",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "npm run typecheck && electron-builder",
     "dist": "npm run build && electron-builder",
     "make": "electron-builder --win"
   },
