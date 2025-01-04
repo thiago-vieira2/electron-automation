@@ -98,9 +98,14 @@ const executarAutomacao = async (codigoNota, pagina) => {
     await pagina.keyboard.press('V');
     await pagina.keyboard.up('Control'); 
 
-    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.evaluate(() => {
+      window.scrollBy(0, 500); // Rola 500 pixels para baixo
+    });
+
+    await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 4000 });
+
     
-    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 5000 });
+    await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 4000 });
 
     console.log(`nota salva para: ${codigoNota}`);
 
