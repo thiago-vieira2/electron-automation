@@ -3,7 +3,6 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-
 const puppeteer = require("puppeteer");
 const xlsx = require("xlsx");
 
@@ -32,7 +31,6 @@ const handlePrimeiraColuna = (planilha) => {
 
   return primeiraColuna;
 }
-
 
 const iniciarNavegador = async () => {
 
@@ -76,48 +74,74 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
   console.log("Navegação para a URL esperada detectada!");
 };
 
+
 const executarAutomacao = async (codigoNota, pagina) => { 
+
+ 
+  const contador2 = 0
   try {
+
+    let contador = 0
     if (!codigoNota || typeof codigoNota !== 'string') {
       throw new Error('O código da nota não é válido.');
     }
 
+    // Aguarda o seletor do input
+    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });
 
-   
-    await pagina.waitForSelector('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]', { visible: true, timeout: 5000 });  
 
-    await new Promise(resolve => setTimeout(resolve, 7000));
+    await pagina.focus('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+
+  
+    await pagina.keyboard.down('Control');
+    await pagina.keyboard.press('A'); // Seleciona todo o texto no campo
+    await pagina.keyboard.up('Control');
+    await pagina.keyboard.press('Backspace'); // Apaga o texto selecionado
     
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Insere a nova nota
     await pagina.evaluate((codigo) => {
       navigator.clipboard.writeText(codigo);
     }, codigoNota);
-    
-  
-    await pagina.focus('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
+
     await pagina.keyboard.down('Control'); 
-    await pagina.keyboard.press('V');
+    await pagina.keyboard.press('V'); // Cola a nova nota
     await pagina.keyboard.up('Control'); 
 
+    await new Promise(resolve => setTimeout(resolve, 3000));
     await pagina.evaluate(() => {
       window.scrollBy(0, 500); // Rola 500 pixels para baixo
     });
 
+    // Aguarda o botão de salvar e clica
     await pagina.waitForSelector('[value="Salvar Nota"]', { visible: true, timeout: 4000 });
 
-    
+    await new Promise(resolve => setTimeout(resolve, 4000));
+
     await pagina.click('[value="Salvar Nota"]', { visible: true, timeout: 4000 });
 
-    console.log(`nota salva para: ${codigoNota}`);
+    // Verifica o texto do span para erros
+    const spanText = await pagina.evaluate(() => {
+      const span = document.querySelector('#lblErro'); 
+      return span && span.textContent ? span.textContent.trim() : null;
+    });
 
-    if(pagina.click){
-      console.log('nota cadastrada')
+    if (spanText && spanText.includes('Este pedido já existe no sistema. Favor inserir uma nova nota.')) { // Ajuste a mensagem específica do erro
+      contador++
+      console.log(`Nota ${codigoNota} já foi cadastrada. Pulando para a próxima. ${contador}`);
+      return; // Sai da função e passa para a próxima nota
     }
 
+    
+
+    console.log(`Nota cadastrada com sucesso: ${codigoNota}`);
 
   } catch (erro) {
-    console.error(`Erro no processo: ${erro}`);
+    console.error(`Erro no processo para a nota ${codigoNota}:`, erro);
   }
 };
+
 
 // Função principal de manipulação da planilha
 const handler = async (planilha) => {
@@ -126,33 +150,30 @@ const handler = async (planilha) => {
   }
 
   try {
-    // Aguarda a execução de handlePrimeiraColuna para garantir que a primeira coluna seja extraída corretamente
     const primeiraColuna = await handlePrimeiraColuna(planilha);
-
-    const { pagina } = await iniciarNavegador();
+    const notasFiltradas = primeiraColuna.filter((nota, index, self) => self.indexOf(nota) === index);
+    console.log(`Notas únicas a serem processadas: ${notasFiltradas.length}`)
+    const { navegador, pagina } = await iniciarNavegador();
 
     const urlInicial = "https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=%2fEntidadesFilantropicas%2fCadastroNotaEntidade.aspx";
     await pagina.goto(urlInicial, { waitUntil: "domcontentloaded" });
 
-
     const urlEsperada = "https://www.nfp.fazenda.sp.gov.br/EntidadesFilantropicas/ListagemNotaEntidade.aspx";
     await aguardarURLCorreta(pagina, urlEsperada);
 
-
-    for (const codigoNota of primeiraColuna) {
-      if (!codigoNota || typeof codigoNota !== "string" || codigoNota.trim() === "") {
-        console.log(`Valor inválido para Código da Nota: ${codigoNota}`);
-        continue;
-      }
+    for (const [index, codigoNota] of notasFiltradas.entries()) {
+      console.log(`Processando nota ${index + 1}/${notasFiltradas.length}: ${codigoNota}`);
 
       try {
-        await executarAutomacao(codigoNota, pagina); // Chama a automação para cada código
+        await executarAutomacao(codigoNota, pagina);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Pausa de 2 segundos entre notas
       } catch (erro) {
-        console.error(`Erro ao processar o código ${codigoNota}:`, erro);
+        console.error(`Erro ao processar a nota ${codigoNota}:`, erro);
       }
     }
 
     console.log("Automação concluída com sucesso.");
+    await navegador.close();
     return "Automação concluída com sucesso!";
   } catch (erro) {
     console.error("Erro no processo:", erro);
