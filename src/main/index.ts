@@ -16,21 +16,30 @@ const handlePrimeiraColuna = (planilha) => {
 
   console.log(`Aba selecionada: ${aba}`);
   
-  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1 });
+  // Lê os dados da aba como array de arrays
+  const dados = xlsx.utils.sheet_to_json(planilha.Sheets[aba], { header: 1});
   if (!dados || dados.length === 0) {
     console.error(`A aba ${aba} não contém dados válidos.`);
     return [];
   }
-  console.log("Dados lidos:", dados);
 
-  const primeiraColuna = dados
-    .map((linha) => Array.isArray(linha) ? linha[0] : null)
-    .filter(value => value !== null);  // Filtra valores nulos
-  
-  console.log("Primeira coluna:", primeiraColuna);
+  console.log("Dados lidos da planilha:", dados);
 
-  return primeiraColuna;
-}
+  // Mapeia a primeira coluna, incluindo valores nulos ou vazios
+  const primeiraColuna = dados.map((linha, index) => {
+    const valor = Array.isArray(linha) ? linha[0] : null;
+    console.log(`Linha ${index + 1}, Coluna 1:`, valor); // Log para depuração
+    return valor;
+  });
+
+  console.log("Primeira coluna completa (incluindo nulos):", primeiraColuna);
+
+  // Filtra valores apenas se necessário
+  const primeiraColunaFiltrada = primeiraColuna.filter(value => value !== null && value !== '');
+  console.log("Primeira coluna filtrada (sem nulos ou vazios):", primeiraColunaFiltrada);
+
+  return primeiraColunaFiltrada;
+};
 
 const iniciarNavegador = async () => {
 
@@ -103,11 +112,13 @@ const executarAutomacao = async (codigoNota, pagina) => {
     // Insere a nova nota
     await pagina.evaluate((codigo) => {
       navigator.clipboard.writeText(codigo);
-    }, codigoNota);
+    },codigoNota);
 
+    await pagina.click('[title="Digite ou Utilize um leitor de código de barras ou QRCode"]');
     await pagina.keyboard.down('Control'); 
     await pagina.keyboard.press('V'); // Cola a nova nota
     await pagina.keyboard.up('Control'); 
+    
 
     await new Promise(resolve => setTimeout(resolve, 3000));
     await pagina.evaluate(() => {
