@@ -87,7 +87,6 @@ const aguardarURLCorreta = async (pagina, urlEsperada) => {
 const executarAutomacao = async (codigoNota, pagina) => { 
 
  
-  const contador2 = 0
   try {
 
     let contador = 0
