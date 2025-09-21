@@ -48,8 +48,8 @@ function App() {
     <div className="App">
       <h1>Cadastramento Automático de Notas</h1>
       <form onSubmit={handleUpload}>
-        <div>
-          <input type="file" id="arquivo" accept=".xlsx" onChange={handleFileChange} />
+        <div className="teste">
+          <input  type="file" id="arquivo" accept=".xlsx" onChange={handleFileChange} />
         </div>
         <button className="Enviar" type="submit" disabled={carregando}>
           {carregando ? "Processando..." : "Enviar Arquivo"}

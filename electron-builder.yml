@@ -16,7 +16,7 @@ win:
   target:
     - nsis
   defaultArch: x64
-  executableName: electron-app
+  executableName: automacao-excel
   certificateFile: null
   sign: false
 
