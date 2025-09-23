@@ -3,7 +3,7 @@ import xlsx from 'xlsx';
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
-import { handlePrimeiraColuna } from '../FirstColumn/main';
+import { handlePrimeiraColuna } from '../ReadFirstColumn/main';
 import { iniciarNavegador } from '../initBrowser/main';
 import { aguardarURLCorreta } from '../waitUrl/main';
 import { executarAutomacao } from '../executeAutomation/main';

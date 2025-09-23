@@ -1,7 +1,8 @@
 import 'dotenv/config';
+import { Page } from 'puppeteer';
 
 
-export const aguardarURLCorreta = async (pagina, urlEsperada) => {
+export const aguardarURLCorreta = async (pagina: Page, urlEsperada: string) => {
   console.log(`Aguardando a navegação manual para a URL: ${urlEsperada}`);
   await pagina.waitForFunction(
     (url) => window.location.href === url,

@@ -1,5 +1,6 @@
 import 'dotenv/config';
-const xlsx = require("xlsx");
+
+import xlsx from 'xlsx'; 
 
 
 export const handlePrimeiraColuna = (planilha) => {
